@@ -27,8 +27,8 @@ export default function ReportPdfView({ weekData, dateRange = 'weekly' }) {
   const dateCaption = weekData?.dateRangeLabel ?? '—';
 
   return (
-    <div className="report-pdf-view" style={{ width: 900, background: '#f8fafc', padding: 24, boxSizing: 'border-box' }}>
-      <div className="stats-grid" style={{ marginBottom: 24 }}>
+    <div className="report-pdf-view" style={{ width: 900, background: '#f8fafc', padding: 16, boxSizing: 'border-box' }}>
+      <div className="stats-grid" style={{ marginBottom: 12 }}>
         <StatCard
           title={`Total Vehicles (${rangeLabel})`}
           value={weekData?.totalVehicles != null ? weekData.totalVehicles.toLocaleString() : '—'}
@@ -51,7 +51,7 @@ export default function ReportPdfView({ weekData, dateRange = 'weekly' }) {
         />
       </div>
 
-      <div className="chart-container">
+      <div className="chart-container" style={{ marginBottom: 10 }}>
         <h2>Top Flows by Direction</h2>
         <div className="intersection-list">
           {(weekData?.topFlowsByDirection || []).map((item) => (
@@ -66,14 +66,16 @@ export default function ReportPdfView({ weekData, dateRange = 'weekly' }) {
         </div>
       </div>
 
-      <RiskHeatmap
+      <div style={{ marginBottom: 10 }}>
+        <RiskHeatmap
         riskByHour={weekData?.riskByHour}
         vehicleCountByHour={weekData?.vehicleFrequencyByHour}
         dataPeriodLabel={dateCaption}
         filterType={dateRange}
-      />
+        />
+      </div>
 
-      <div className="chart-container">
+      <div className="chart-container" style={{ marginBottom: 10 }}>
         <h2>Vehicle Frequency Throughout Day</h2>
         <div className="chart-inner chart-inner--tall">
           <ResponsiveContainer width="100%" height={320}>
@@ -92,7 +94,7 @@ export default function ReportPdfView({ weekData, dateRange = 'weekly' }) {
         </div>
       </div>
 
-      <div className="chart-container">
+      <div className="chart-container" style={{ marginBottom: 10 }}>
         <h2>Vehicle Classification by Hour</h2>
         <div className="chart-inner chart-inner--tall">
           <ResponsiveContainer width="100%" height={340}>
@@ -113,7 +115,7 @@ export default function ReportPdfView({ weekData, dateRange = 'weekly' }) {
         </div>
       </div>
 
-      <div className="chart-container pie-container">
+      <div className="chart-container pie-container" style={{ marginBottom: 0 }}>
         <h2>Vehicle Class Distribution</h2>
         <div className="pie-chart-wrap">
           <ResponsiveContainer width="100%" height={220}>

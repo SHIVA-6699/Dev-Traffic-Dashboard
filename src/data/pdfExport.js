@@ -4,9 +4,9 @@ import { autoTable } from 'jspdf-autotable';
 const RANGE_LABELS = { daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly' };
 
 /**
- * Generate and download a PDF from report data (no screen capture).
- * All content is drawn with jsPDF so there are no white/blank pages.
- * @param {object} options - { reportType: 'daily'|'weekly'|'monthly', selectedDate?, selectedIntersection?, reportData }
+ * Generate and download a PDF. If canvas is provided (from html-to-image capture), charts are included.
+ * @param {HTMLCanvasElement|null} canvas - From toPng() capture of ReportForPdf
+ * @param {object} options - { reportType, selectedDate?, selectedIntersection?, reportData }
  */
 export function generateReportPdfFromCanvas(canvas, options = {}) {
   const reportType = options.reportType || 'weekly';
@@ -14,10 +14,15 @@ export function generateReportPdfFromCanvas(canvas, options = {}) {
   const rangeLabel = RANGE_LABELS[reportType] ?? 'Weekly';
   const periodLabel = reportData.dateRangeLabel ?? options.selectedDate ?? '—';
 
+  const hasCanvas = canvas && canvas.width >= 200 && canvas.height >= 200;
+  const imgData = hasCanvas ? canvas.toDataURL('image/jpeg', 0.92) : null;
+  const imgW = hasCanvas ? canvas.width : 0;
+  const imgH = hasCanvas ? canvas.height : 0;
+
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
-  const margin = 8;
+  const margin = 6;
   const contentW = pageW - margin * 2;
 
   // ----- Page 1: Cover + stats -----
@@ -75,20 +80,38 @@ export function generateReportPdfFromCanvas(canvas, options = {}) {
     x += boxW + 3;
   });
 
-  // ----- Page 2: Data tables (no screen capture, no white pages) -----
+  // ----- Page 2+: Charts image (no gap, full width) then tables -----
   doc.addPage();
-  let y = margin + 4;
+  if (hasCanvas && imgData) {
+    const imgRatio = imgH / imgW;
+    const fitW = contentW;
+    const fitH = fitW * imgRatio;
+    const sliceH = pageH - margin * 2;
+    const numImgPages = fitH <= sliceH ? 1 : Math.ceil(fitH / sliceH);
+    if (numImgPages === 1) {
+      doc.addImage(imgData, 'JPEG', margin, margin, fitW, fitH);
+    } else {
+      for (let i = 0; i < numImgPages; i++) {
+        if (i > 0) doc.addPage();
+        const sy = (i * sliceH / fitH) * imgH;
+        const sh = Math.min((sliceH / fitH) * imgH, imgH - sy);
+        const dh = (sh / imgH) * fitH;
+        doc.addImage(imgData, 'JPEG', margin, margin, fitW, dh, 0, sy, imgW, sh);
+      }
+    }
+    doc.addPage();
+  }
 
+  let y = margin + 2;
   doc.setDrawColor(22, 163, 74);
-  doc.setLineWidth(0.4);
+  doc.setLineWidth(0.35);
   doc.line(margin, y, pageW - margin, y);
-  y += 8;
-
+  y += 6;
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(12);
+  doc.setFontSize(11);
   doc.setTextColor(30, 41, 59);
   doc.text('Top Flows by Direction', margin, y);
-  y += 8;
+  y += 6;
 
   const flows = reportData.topFlowsByDirection || [];
   const avgFromStats = (s) => (s && /avg\s+(\d+)\s+mph/.test(s) ? `${s.match(/avg\s+(\d+)\s+mph/)[1]} mph` : '—');
@@ -108,17 +131,17 @@ export function generateReportPdfFromCanvas(canvas, options = {}) {
       styles: { fontSize: 9 },
       alternateRowStyles: { fillColor: [248, 250, 252] },
     });
-    y = doc.lastAutoTable ? doc.lastAutoTable.finalY + 10 : y + 30;
+    y = doc.lastAutoTable ? doc.lastAutoTable.finalY + 6 : y + 20;
   }
 
   const speedingByDay = reportData.speedingByDay || [];
   if (speedingByDay.length > 0) {
-    y = doc.lastAutoTable ? doc.lastAutoTable.finalY + 12 : y + 12;
-    if (y > pageH - 40) { doc.addPage(); y = margin + 4; }
+    y = doc.lastAutoTable ? doc.lastAutoTable.finalY + 6 : y + 6;
+    if (y > pageH - 40) { doc.addPage(); y = margin + 2; }
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(12);
+    doc.setFontSize(11);
     doc.text('Speeding by Day (≥50 mph)', margin, y);
-    y += 6;
+    y += 5;
     autoTable(doc, {
       startY: y,
       head: [['Day', 'Count']],
@@ -131,16 +154,15 @@ export function generateReportPdfFromCanvas(canvas, options = {}) {
     });
   }
 
-  // Risk by hour (0–23)
   const riskByHour = reportData.riskByHour;
   if (Array.isArray(riskByHour) && riskByHour.length === 24) {
-    y = doc.lastAutoTable ? doc.lastAutoTable.finalY + 12 : y + 12;
-    if (y > pageH - 50) { doc.addPage(); y = margin + 4; }
+    y = doc.lastAutoTable ? doc.lastAutoTable.finalY + 6 : y + 6;
+    if (y > pageH - 50) { doc.addPage(); y = margin + 2; }
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(12);
+    doc.setFontSize(11);
     doc.setTextColor(30, 41, 59);
     doc.text('Risk by Hour (0=low, 4=high)', margin, y);
-    y += 6;
+    y += 5;
     const hourLabels = Array.from({ length: 24 }, (_, i) => i === 0 ? '12 AM' : i === 12 ? '12 PM' : i < 12 ? `${i} AM` : `${i - 12} PM`);
     autoTable(doc, {
       startY: y,
@@ -166,15 +188,14 @@ export function generateReportPdfFromCanvas(canvas, options = {}) {
     });
   }
 
-  // Vehicle frequency by hour
   const freqByHour = reportData.vehicleFrequencyByHour || [];
   if (freqByHour.length > 0) {
-    y = doc.lastAutoTable ? doc.lastAutoTable.finalY + 12 : y + 12;
-    if (y > pageH - 50) { doc.addPage(); y = margin + 4; }
+    y = doc.lastAutoTable ? doc.lastAutoTable.finalY + 6 : y + 6;
+    if (y > pageH - 50) { doc.addPage(); y = margin + 2; }
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(12);
+    doc.setFontSize(11);
     doc.text('Vehicle Frequency by Hour', margin, y);
-    y += 6;
+    y += 5;
     autoTable(doc, {
       startY: y,
       head: [['Time', 'Vehicles']],

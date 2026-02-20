@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { Globe2, MapPinned, Video } from 'lucide-react';
 import { TrafficDataProvider } from './context/TrafficDataContext';
@@ -7,7 +7,7 @@ import OverviewPage from './components/OverviewPage';
 import IntersectionPage from './components/IntersectionPage';
 import EventsPage from './components/EventsPage';
 import ReportForPdf from './components/ReportForPdf';
-import domtoimage from 'dom-to-image';
+import { toPng } from 'html-to-image';
 import { generateReportPdfFromCanvas } from './data/pdfExport';
 import './App.css';
 
@@ -24,74 +24,41 @@ export default function App() {
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedIntersection, setSelectedIntersection] = useState('Main St & 5th Ave');
   const [pdfCaptureRequest, setPdfCaptureRequest] = useState(null);
-  const pdfCaptureRef = useRef(null);
+  const pdfReportRef = useRef(null);
 
   useEffect(() => {
-    if (!pdfCaptureRequest || !pdfCaptureRef.current) return;
-    const el = pdfCaptureRef.current;
-    const originalLeft = el.style.left;
-    const originalTop = el.style.top;
-    const originalZIndex = el.style.zIndex;
-    const originalOpacity = el.style.opacity;
-
+    if (!pdfCaptureRequest || !pdfReportRef.current) return;
+    const node = pdfReportRef.current;
     const timer = setTimeout(() => {
-      if (!el?.firstElementChild) {
-        setPdfCaptureRequest(null);
-        return;
-      }
-      const node = el.firstElementChild;
-
-      // Move report on-screen so browser paints charts (required for dom-to-image)
-      el.style.left = '0';
-      el.style.top = '0';
-      el.style.zIndex = '9999';
-      el.style.opacity = '0.02';
-
-      const doCapture = () => {
-        domtoimage
-          .toPng(node, { bgcolor: '#f8fafc' })
-          .then((dataUrl) => {
-            return new Promise((resolve, reject) => {
-              const img = new Image();
-              img.onload = () => {
-                const canvas = document.createElement('canvas');
-                canvas.width = img.width;
-                canvas.height = img.height;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0);
-                resolve(canvas);
-              };
-              img.onerror = () => reject(new Error('Failed to load capture image'));
-              img.src = dataUrl;
-            });
-          })
-          .then((canvas) => {
-            generateReportPdfFromCanvas(canvas, {
-              ...pdfCaptureRequest.options,
-              reportData: pdfCaptureRequest.reportData,
-            });
-            const label = pdfCaptureRequest.options.reportType === 'daily' ? 'Daily' : pdfCaptureRequest.options.reportType === 'weekly' ? 'Weekly' : 'Monthly';
-            toast.success(`${label} report downloaded`, { id: 'pdf-gen', description: 'PDF with charts and data saved.' });
-          })
-          .catch((err) => {
-            toast.error('PDF export failed', { id: 'pdf-gen', description: err?.message || 'Could not capture report.' });
-          })
-          .finally(() => {
-            el.style.left = originalLeft;
-            el.style.top = originalTop;
-            el.style.zIndex = originalZIndex;
-            el.style.opacity = originalOpacity;
-            setPdfCaptureRequest(null);
+      toPng(node, { backgroundColor: '#f8fafc', cacheBust: true, pixelRatio: 2 })
+        .then((dataUrl) => {
+          return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => {
+              const canvas = document.createElement('canvas');
+              canvas.width = img.width;
+              canvas.height = img.height;
+              const ctx = canvas.getContext('2d');
+              ctx.drawImage(img, 0, 0);
+              resolve(canvas);
+            };
+            img.onerror = () => reject(new Error('Failed to load image'));
+            img.src = dataUrl;
           });
-      };
-
-      // Wait for browser to paint the now-visible report (charts need layout/paint)
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          setTimeout(doCapture, 150);
-        });
-      });
-    }, 1800);
+        })
+        .then((canvas) => {
+          generateReportPdfFromCanvas(canvas, {
+            ...pdfCaptureRequest.options,
+            reportData: pdfCaptureRequest.reportData,
+          });
+          const label = pdfCaptureRequest.options.reportType === 'daily' ? 'Daily' : pdfCaptureRequest.options.reportType === 'weekly' ? 'Weekly' : 'Monthly';
+          toast.success(`${label} report downloaded`, { id: 'pdf-gen', description: 'PDF with charts and data saved.' });
+        })
+        .catch((err) => {
+          toast.error('PDF export failed', { id: 'pdf-gen', description: err?.message || 'Could not capture charts.' });
+        })
+        .finally(() => setPdfCaptureRequest(null));
+    }, 2500);
     return () => clearTimeout(timer);
   }, [pdfCaptureRequest]);
 
@@ -170,23 +137,26 @@ export default function App() {
           </div>
         </main>
 
-        {/* Hidden report view for PDF capture */}
-        <div
-          aria-hidden="true"
-          ref={pdfCaptureRef}
-          style={{
-            position: 'fixed',
-            left: -9999,
-            top: 0,
-            width: 920,
-            zIndex: -1,
-            pointerEvents: 'none',
-          }}
-        >
-          {pdfCaptureRequest && (
-            <ReportForPdf reportData={pdfCaptureRequest.reportData} options={pdfCaptureRequest.options} />
-          )}
-        </div>
+        {/* Visible overlay for PDF capture so charts paint; captured after 2.5s */}
+        {pdfCaptureRequest && (
+          <div
+            className="pdf-capture-overlay"
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 99999,
+              background: '#f8fafc',
+              overflow: 'auto',
+              display: 'flex',
+              justifyContent: 'center',
+              padding: 16,
+            }}
+          >
+            <div ref={pdfReportRef}>
+              <ReportForPdf reportData={pdfCaptureRequest.reportData} options={pdfCaptureRequest.options} />
+            </div>
+          </div>
+        )}
       </div>
     </div>
     </TrafficDataProvider>
