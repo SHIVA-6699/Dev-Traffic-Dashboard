@@ -1,5 +1,4 @@
 import { useState, useMemo } from 'react';
-import { toast } from 'sonner';
 import { Video } from 'lucide-react';
 import { useTrafficData } from '../context/TrafficDataContext';
 
@@ -39,11 +38,7 @@ export default function EventsPage() {
     });
   }, [events, directionFilter, dayFilter]);
 
-  const handleRowClick = (row) => {
-    toast.success('Event details', {
-      description: `${row.type} — ${row.direction} • ${(row.speedMph ?? (row.speedKmh / 1.609)).toFixed(1)} mph`,
-    });
-  };
+  const handleRowClick = () => {};
 
   return (
     <>
@@ -60,10 +55,7 @@ export default function EventsPage() {
           <select
             className="select"
             value={directionFilter}
-            onChange={(e) => {
-              setDirectionFilter(e.target.value);
-              toast.info('Filter applied', { description: e.target.value || 'All directions' });
-            }}
+            onChange={(e) => setDirectionFilter(e.target.value)}
             aria-label="Filter by direction"
           >
             {DIRECTION_OPTIONS.map((opt) => (
@@ -75,11 +67,7 @@ export default function EventsPage() {
           <select
             className="select"
             value={dayFilter}
-            onChange={(e) => {
-              setDayFilter(e.target.value);
-              const label = dayOptions.find((o) => o.value === e.target.value)?.label ?? e.target.value;
-              toast.info('Filter applied', { description: e.target.value ? label : 'All days' });
-            }}
+            onChange={(e) => setDayFilter(e.target.value)}
             aria-label="Filter by day"
           >
             {dayOptions.map((opt) => (
@@ -92,11 +80,7 @@ export default function EventsPage() {
             <button
               type="button"
               className="filter-btn"
-              onClick={() => {
-                setDirectionFilter('');
-                setDayFilter('');
-                toast.success('Filters cleared');
-              }}
+              onClick={() => { setDirectionFilter(''); setDayFilter(''); }}
             >
               Clear filters
             </button>

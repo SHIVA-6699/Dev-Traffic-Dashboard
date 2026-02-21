@@ -88,7 +88,7 @@ export function downloadReportPdf(weekData, dateRange = 'weekly') {
       body: speedingByDay.map((d) => [d.day ?? '—', String(d.count ?? 0)]),
       margin: { left: margin, right: margin },
       theme: 'grid',
-      headStyles: { fillColor: [239, 68, 68], textColor: 255 },
+      headStyles: { fillColor: [179, 25, 66], textColor: 255 },
       styles: { fontSize: 10 },
     });
   }

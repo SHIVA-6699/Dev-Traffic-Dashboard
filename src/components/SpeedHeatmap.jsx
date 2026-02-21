@@ -22,10 +22,10 @@ const FALLBACK_SEGMENTS = [
 ];
 
 function speedToColor(speedMph) {
-  if (speedMph <= 25) return '#22c55e';
+  if (speedMph <= 25) return '#0a3161';
   if (speedMph <= 35) return '#eab308';
   if (speedMph <= 45) return '#f97316';
-  return '#ef4444';
+  return '#b31942';
 }
 
 function volumeToRadius(volume) {
@@ -61,9 +61,6 @@ export default function SpeedHeatmap({ onReport }) {
           volume: a.volume,
         }));
         setSegments(list);
-        toast.success(`September ${selectedDay} data loaded`, {
-          description: `${agg.reduce((s, a) => s + a.volume, 0).toLocaleString()} vehicles`,
-        });
       })
       .catch((err) => {
         toast.error('Could not load CSV', { description: err?.message || 'Check file path.' });
@@ -73,21 +70,7 @@ export default function SpeedHeatmap({ onReport }) {
   }, [selectedDay]);
 
   const handleReport = (type) => {
-    if (onReport) {
-      onReport(type);
-    } else {
-      const label = type === 'daily' ? 'Daily' : type === 'weekly' ? 'Weekly' : 'Monthly';
-      const id = toast.loading(`Generating ${label} report for this intersection…`);
-      setTimeout(() => {
-        toast.success(`${label} report ready`, { id });
-      }, 1800);
-    }
-  };
-
-  const handleSegmentClick = (segment) => {
-    toast.info(`${segment.label} speeds`, {
-      description: `Avg ${segment.avgSpeedMph} mph • ${segment.volume.toLocaleString()} vehicles`,
-    });
+    onReport?.(type);
   };
 
   return (
@@ -111,20 +94,14 @@ export default function SpeedHeatmap({ onReport }) {
           <button
             type="button"
             className={`filter-btn ${speedFilter === 'aggregated' ? 'active' : ''}`}
-            onClick={() => {
-              setSpeedFilter('aggregated');
-              toast.info('Showing aggregated speeds by direction');
-            }}
+            onClick={() => setSpeedFilter('aggregated')}
           >
             Aggregated
           </button>
           <button
             type="button"
             className={`filter-btn ${speedFilter === 'time' ? 'active' : ''}`}
-            onClick={() => {
-              setSpeedFilter('time');
-              toast.info('Time-sliced views can be wired to real data later');
-            }}
+            onClick={() => setSpeedFilter('time')}
           >
             By Time
           </button>
@@ -163,7 +140,7 @@ export default function SpeedHeatmap({ onReport }) {
                 weight: 2,
               }}
               eventHandlers={{
-                click: () => handleSegmentClick(segment),
+                click: () => {},
               }}
             >
               <Tooltip direction="top" offset={[0, -4]} opacity={0.9} permanent={false}>

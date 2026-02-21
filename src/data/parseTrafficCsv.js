@@ -187,6 +187,7 @@ async function fetchWithDays(daysToLoad, speedLimitKmh, rangeLabel = 'daily') {
   const byHour = Array.from({ length: 24 }, () => ({ count: 0, overLimit: 0 }));
   const byClass = { car: 0, truck: 0, bus: 0 };
   const byDay = Array.from({ length: numDays }, () => ({ count: 0, overLimit: 0 }));
+  const byDayAndHour = Array.from({ length: numDays }, () => Array.from({ length: 24 }, () => ({ count: 0 })));
   const byEntry = {};
   dirOrder.forEach((d) => {
     byEntry[d] = { count: 0, sumSpeed: 0, car: 0, truck: 0, bus: 0 };
@@ -197,6 +198,7 @@ async function fetchWithDays(daysToLoad, speedLimitKmh, rangeLabel = 'daily') {
   allRows.forEach((r) => {
     const h = r.hour;
     byHour[h].count += 1;
+    byDayAndHour[r.day][h].count += 1;
     if (r.speedKmh >= speedLimitKmh) {
       byHour[h].overLimit += 1;
       byDay[r.day].overLimit += 1;
@@ -232,7 +234,7 @@ async function fetchWithDays(daysToLoad, speedLimitKmh, rangeLabel = 'daily') {
     return {
       rank: 0,
       name: dir.charAt(0) + dir.slice(1).toLowerCase() + 'bound',
-      stats: `${count.toLocaleString()} vehicles • avg ${Math.round(avgKmh / 1.609)} mph • ${d.car} car, ${d.truck} truck, ${d.bus} bus`,
+      stats: `${count.toLocaleString()} vehicles • avg ${Math.round(avgKmh / 1.609)} mph • ${d.car} cars, ${d.truck} trucks, ${d.bus} buses`,
       volume: count,
     };
   });
@@ -250,7 +252,7 @@ async function fetchWithDays(daysToLoad, speedLimitKmh, rangeLabel = 'daily') {
   });
 
   const classDistribution = [
-    { name: 'Car', value: byClass.car, color: '#3b82f6' },
+    { name: 'Car', value: byClass.car, color: '#0a3161' },
     { name: 'Truck', value: byClass.truck, color: '#f59e0b' },
     { name: 'Bus', value: byClass.bus, color: '#10b981' },
   ].filter((d) => d.value > 0);
@@ -260,15 +262,16 @@ async function fetchWithDays(daysToLoad, speedLimitKmh, rangeLabel = 'daily') {
     d.percent = totalClass > 0 ? Math.round((d.value / totalClass) * 1000) / 10 : 0;
   });
 
-  // Absolute count buckets so Daily vs Weekly vs Monthly show different heatmap colors
-  const riskByHour = byHour.map((h) => {
-    const c = h.count || 0;
-    if (c >= 700) return 4;
-    if (c >= 350) return 3;
-    if (c >= 150) return 2;
-    if (c >= 50) return 1;
+  function countToRisk(c) {
+    const n = c || 0;
+    if (n >= 700) return 4;
+    if (n >= 350) return 3;
+    if (n >= 150) return 2;
+    if (n >= 50) return 1;
     return 0;
-  });
+  }
+  const riskByHour = byHour.map((h) => countToRisk(h.count));
+  const riskByDayAndHour = byDayAndHour.map((dayRow) => dayRow.map((h) => countToRisk(h.count)));
 
   const directionClassBars = [];
   dirOrder.forEach((dir) => {
@@ -305,6 +308,7 @@ async function fetchWithDays(daysToLoad, speedLimitKmh, rangeLabel = 'daily') {
     vehicleTrendByHour,
     classDistribution,
     riskByHour,
+    riskByDayAndHour,
     directionClassBars,
     speedingByDay,
     highSpeedEvents: highSpeedEvents.slice(0, 100),
@@ -318,6 +322,17 @@ async function fetchWithDays(daysToLoad, speedLimitKmh, rangeLabel = 'daily') {
 export async function fetchDataByRange(range = 'all', speedLimitKmh = SPEED_LIMIT_KMH) {
   const daysToLoad = getDaysForRange(range);
   return fetchWithDays(daysToLoad, speedLimitKmh, range);
+}
+
+/**
+ * Fetch data for a custom date range (inclusive). Dates in 'YYYY-MM-DD'.
+ * @param {string} startDate - e.g. '2017-09-01'
+ * @param {string} endDate - e.g. '2017-09-15'
+ */
+export async function fetchDataForDateRange(startDate, endDate, speedLimitKmh = SPEED_LIMIT_KMH) {
+  const daysToLoad = ALL_CSV_DAYS.filter((d) => d.date >= startDate && d.date <= endDate);
+  if (daysToLoad.length === 0) throw new Error(`No CSV data between ${startDate} and ${endDate}`);
+  return fetchWithDays(daysToLoad, speedLimitKmh, 'custom');
 }
 
 /**

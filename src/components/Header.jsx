@@ -1,5 +1,4 @@
 import { FileBarChart2, Download, Calendar } from 'lucide-react';
-import { toast } from 'sonner';
 import { useTrafficData } from '../context/TrafficDataContext';
 import { fetchDataByRange, fetchDataForDate } from '../data/parseTrafficCsv';
 import { ALL_CSV_DAYS } from '../data/csvPaths';
@@ -13,12 +12,7 @@ export default function Header({ timeFilter, setTimeFilter, dateRange, onDateRan
   };
 
   const handleDownload = async () => {
-    if (loading) {
-      toast.warning('Please wait for data to load before downloading.');
-      return;
-    }
-    const label = selectedDate ? selectedDate : (dateRange === 'daily' ? 'Daily' : dateRange === 'weekly' ? 'Weekly' : 'Monthly');
-    toast.loading(`Generating report…`, { id: 'pdf-gen' });
+    if (loading) return;
     if (!onRequestPdf) return;
     try {
       const reportData = selectedDate
@@ -33,19 +27,13 @@ export default function Header({ timeFilter, setTimeFilter, dateRange, onDateRan
         },
       });
     } catch (err) {
-      toast.error('Could not load report data', { id: 'pdf-gen', description: err?.message });
+      // silent fail on download
     }
   };
 
   const handleDateSelect = (e) => {
     const value = e.target.value || null;
     onSelectedDateChange?.(value);
-    if (value) {
-      const opt = ALL_CSV_DAYS.find((d) => d.date === value);
-      toast.info('Date selected', { description: opt ? opt.dateLabel : value });
-    } else {
-      toast.info('Using range', { description: `${dateRange} (Daily/Weekly/Monthly)` });
-    }
   };
 
   return (
@@ -101,7 +89,7 @@ export default function Header({ timeFilter, setTimeFilter, dateRange, onDateRan
             <FileBarChart2 className="btn-icon" />
             Monthly
           </button>
-          <button type="button" className="report-btn" onClick={handleDownload}>
+          <button type="button" className="report-btn report-btn--download" onClick={handleDownload}>
             <Download className="btn-icon" />
             Download
           </button>

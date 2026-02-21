@@ -19,10 +19,6 @@ export function TrafficDataProvider({ children, dateRange = 'daily', selectedDat
     load
       .then((data) => {
         setWeekData(data);
-        const label = selectedDate ? selectedDate : dateRange.charAt(0).toUpperCase() + dateRange.slice(1);
-        toast.success(selectedDate ? `Date ${data.dateRangeLabel} loaded` : `${label} data loaded from CSV`, {
-          description: `${data.totalVehicles.toLocaleString()} vehicles (${data.dateRangeLabel})`,
-        });
       })
       .catch((err) => {
         setError(err?.message || 'Failed to load CSV');

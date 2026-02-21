@@ -57,7 +57,7 @@ export function PdfReportProvider({ children }) {
       const margin = 14;
 
       // ----- Page 1: Cover / Title -----
-      doc.setFillColor(22, 163, 74); // green-600
+      doc.setFillColor(10, 49, 97);
       doc.rect(0, 0, pageW, 42, 'F');
       doc.setTextColor(255, 255, 255);
       doc.setFontSize(22);
@@ -131,7 +131,7 @@ export function PdfReportProvider({ children }) {
       doc.addPage();
       let y = 20;
 
-      doc.setDrawColor(22, 163, 74);
+      doc.setDrawColor(10, 49, 97);
       doc.setLineWidth(0.5);
       doc.line(margin, y, pageW - margin, y);
       y += 10;
@@ -156,7 +156,7 @@ export function PdfReportProvider({ children }) {
           ]),
           margin: { left: margin, right: margin },
           theme: 'grid',
-          headStyles: { fillColor: [22, 163, 74], textColor: 255, fontStyle: 'bold' },
+          headStyles: { fillColor: [10, 49, 97], textColor: 255, fontStyle: 'bold' },
           styles: { fontSize: 10 },
           alternateRowStyles: { fillColor: [248, 250, 252] },
         });
@@ -175,7 +175,7 @@ export function PdfReportProvider({ children }) {
           body: speedingByDay.map((d) => [d.day ?? '—', String(d.count ?? 0)]),
           margin: { left: margin, right: margin },
           theme: 'grid',
-          headStyles: { fillColor: [239, 68, 68], textColor: 255, fontStyle: 'bold' },
+          headStyles: { fillColor: [179, 25, 66], textColor: 255, fontStyle: 'bold' },
           styles: { fontSize: 10 },
           alternateRowStyles: { fillColor: [254, 242, 242] },
         });

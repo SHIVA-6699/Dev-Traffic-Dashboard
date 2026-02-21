@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   XAxis,
   YAxis,
@@ -13,10 +14,11 @@ import {
   Pie,
   Cell,
 } from 'recharts';
-import { toast } from 'sonner';
 import StatCard from './StatCard';
 import RiskHeatmap from './RiskHeatmap';
 import { useTrafficData } from '../context/TrafficDataContext';
+import { fetchDataForDateRange } from '../data/parseTrafficCsv';
+import { ALL_CSV_DAYS } from '../data/csvPaths';
 
 const HOUR_LABELS = ['12', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11'];
 
@@ -24,8 +26,28 @@ const RANGE_LABELS = { daily: 'Day', weekly: 'Week', monthly: 'Month' };
 
 export default function OverviewPage({ timeFilter }) {
   const { weekData, loading, error, dateRange = 'daily' } = useTrafficData();
+  const [customRangeStart, setCustomRangeStart] = useState('');
+  const [customRangeEnd, setCustomRangeEnd] = useState('');
+  const [customRangeData, setCustomRangeData] = useState(null);
+  const [customRangeLoading, setCustomRangeLoading] = useState(false);
+
   const rangeLabel = RANGE_LABELS[dateRange] ?? 'Day';
   const dateCaption = weekData?.dateRangeLabel ?? (dateRange === 'daily' ? 'Most recent day' : dateRange === 'weekly' ? 'Last 7 days' : 'Last 30 days');
+
+  const handleCustomRangeChange = (start, end) => {
+    setCustomRangeStart(start || '');
+    setCustomRangeEnd(end || '');
+    if (!start || !end) setCustomRangeData(null);
+  };
+  const handleCustomRangeApply = () => {
+    if (!customRangeStart || !customRangeEnd || customRangeStart > customRangeEnd) return;
+    setCustomRangeLoading(true);
+    setCustomRangeData(null);
+    fetchDataForDateRange(customRangeStart, customRangeEnd, 80)
+      .then(setCustomRangeData)
+      .catch(() => setCustomRangeData(null))
+      .finally(() => setCustomRangeLoading(false));
+  };
 
   return (
     <>
@@ -60,7 +82,7 @@ export default function OverviewPage({ timeFilter }) {
               key={item.rank}
               type="button"
               className="intersection-item intersection-item--btn"
-              onClick={() => toast.info(`#${item.rank} ${item.name}`, { description: item.stats })}
+              onClick={() => {}}
             >
               <span className="intersection-rank">{item.rank}</span>
               <div className="intersection-info">
@@ -76,11 +98,20 @@ export default function OverviewPage({ timeFilter }) {
       </div>
 
       <RiskHeatmap
-        key={`risk-heatmap-${dateRange}-${weekData?.dateRangeLabel ?? ''}`}
+        key={`risk-heatmap-${dateRange}-${weekData?.dateRangeLabel ?? ''}-${customRangeStart}-${customRangeEnd}`}
         riskByHour={weekData?.riskByHour}
+        riskByDayAndHour={weekData?.riskByDayAndHour}
+        dayNames={weekData?.dayNames}
         vehicleCountByHour={weekData?.vehicleFrequencyByHour}
         dataPeriodLabel={weekData?.dateRangeLabel}
         filterType={dateRange}
+        availableDays={ALL_CSV_DAYS}
+        customRangeStart={customRangeStart}
+        customRangeEnd={customRangeEnd}
+        onCustomRangeChange={handleCustomRangeChange}
+        onCustomRangeApply={handleCustomRangeApply}
+        customRangeData={customRangeData}
+        customRangeLoading={customRangeLoading}
       />
 
       <div className="chart-container">
@@ -96,7 +127,7 @@ export default function OverviewPage({ timeFilter }) {
               <XAxis type="number" tick={{ fontSize: 12 }} />
               <YAxis type="category" dataKey="label" width={64} tick={{ fontSize: 12 }} />
               <Tooltip formatter={(v) => [v?.toLocaleString?.() ?? v, 'Vehicles']} />
-              <Bar dataKey="value" fill="var(--green-500)" radius={[0, 6, 6, 0]} name="Vehicles" />
+              <Bar dataKey="value" fill="var(--primary)" radius={[0, 6, 6, 0]} name="Vehicles" />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -115,7 +146,7 @@ export default function OverviewPage({ timeFilter }) {
               <YAxis tick={{ fontSize: 12 }} />
               <Tooltip />
               <Legend wrapperStyle={{ fontSize: 13 }} />
-              <Area type="monotone" dataKey="cars" stackId="1" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.3} name="Cars" />
+              <Area type="monotone" dataKey="cars" stackId="1" stroke="#0a3161" fill="#0a3161" fillOpacity={0.3} name="Cars" />
               <Area type="monotone" dataKey="trucks" stackId="1" stroke="#f59e0b" fill="#f59e0b" fillOpacity={0.3} name="Trucks" />
               <Area type="monotone" dataKey="buses" stackId="1" stroke="#10b981" fill="#10b981" fillOpacity={0.3} name="Buses" />
             </AreaChart>

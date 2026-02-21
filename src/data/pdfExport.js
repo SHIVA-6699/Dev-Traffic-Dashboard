@@ -4,29 +4,31 @@ import { autoTable } from 'jspdf-autotable';
 const RANGE_LABELS = { daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly' };
 
 /**
- * Generate and download a PDF. If canvas is provided (from html-to-image capture), charts are included.
- * @param {HTMLCanvasElement|null} canvas - From toPng() capture of ReportForPdf
+ * Generate and download a PDF. Charts are one image per page (2 graphs per page when using report-pdf-page sections).
+ * @param {HTMLCanvasElement|HTMLCanvasElement[]|null} canvasOrCanvases - Single canvas or array of canvases (one per chart page)
  * @param {object} options - { reportType, selectedDate?, selectedIntersection?, reportData }
  */
-export function generateReportPdfFromCanvas(canvas, options = {}) {
+export function generateReportPdfFromCanvas(canvasOrCanvases, options = {}) {
+  const canvases = Array.isArray(canvasOrCanvases)
+    ? canvasOrCanvases.filter((c) => c && c.width >= 200 && c.height >= 200)
+    : canvasOrCanvases && canvasOrCanvases.width >= 200
+      ? [canvasOrCanvases]
+      : [];
+
   const reportType = options.reportType || 'weekly';
   const reportData = options.reportData || {};
   const rangeLabel = RANGE_LABELS[reportType] ?? 'Weekly';
   const periodLabel = reportData.dateRangeLabel ?? options.selectedDate ?? '—';
-
-  const hasCanvas = canvas && canvas.width >= 200 && canvas.height >= 200;
-  const imgData = hasCanvas ? canvas.toDataURL('image/jpeg', 0.92) : null;
-  const imgW = hasCanvas ? canvas.width : 0;
-  const imgH = hasCanvas ? canvas.height : 0;
 
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
   const margin = 6;
   const contentW = pageW - margin * 2;
+  const contentH = pageH - margin * 2;
 
-  // ----- Page 1: Cover + stats -----
-  doc.setFillColor(22, 163, 74);
+  // ----- Page 1: Cover + stats (Old Glory Blue) -----
+  doc.setFillColor(10, 49, 97);
   doc.rect(0, 0, pageW, 28, 'F');
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(18);
@@ -80,30 +82,25 @@ export function generateReportPdfFromCanvas(canvas, options = {}) {
     x += boxW + 3;
   });
 
-  // ----- Page 2+: Charts image (no gap, full width) then tables -----
-  doc.addPage();
-  if (hasCanvas && imgData) {
+  // ----- Chart pages: one PDF page per canvas (2 graphs per page), scale to fit, no duplication -----
+  for (let i = 0; i < canvases.length; i++) {
+    const c = canvases[i];
+    const imgData = c.toDataURL('image/jpeg', 0.92);
+    const imgW = c.width;
+    const imgH = c.height;
     const imgRatio = imgH / imgW;
     const fitW = contentW;
     const fitH = fitW * imgRatio;
-    const sliceH = pageH - margin * 2;
-    const numImgPages = fitH <= sliceH ? 1 : Math.ceil(fitH / sliceH);
-    if (numImgPages === 1) {
-      doc.addImage(imgData, 'JPEG', margin, margin, fitW, fitH);
-    } else {
-      for (let i = 0; i < numImgPages; i++) {
-        if (i > 0) doc.addPage();
-        const sy = (i * sliceH / fitH) * imgH;
-        const sh = Math.min((sliceH / fitH) * imgH, imgH - sy);
-        const dh = (sh / imgH) * fitH;
-        doc.addImage(imgData, 'JPEG', margin, margin, fitW, dh, 0, sy, imgW, sh);
-      }
-    }
+    const drawH = fitH <= contentH ? fitH : contentH;
+    const drawW = fitH <= contentH ? fitW : contentW * (contentH / fitH);
     doc.addPage();
+    doc.addImage(imgData, 'JPEG', margin, margin, drawW, drawH);
   }
+  // Tables on a new page
+  if (canvases.length > 0) doc.addPage();
 
   let y = margin + 2;
-  doc.setDrawColor(22, 163, 74);
+  doc.setDrawColor(10, 49, 97);
   doc.setLineWidth(0.35);
   doc.line(margin, y, pageW - margin, y);
   y += 6;
@@ -127,7 +124,7 @@ export function generateReportPdfFromCanvas(canvas, options = {}) {
       ]),
       margin: { left: margin, right: margin },
       theme: 'grid',
-      headStyles: { fillColor: [22, 163, 74], textColor: 255, fontStyle: 'bold' },
+      headStyles: { fillColor: [10, 49, 97], textColor: 255, fontStyle: 'bold' },
       styles: { fontSize: 9 },
       alternateRowStyles: { fillColor: [248, 250, 252] },
     });
@@ -148,7 +145,7 @@ export function generateReportPdfFromCanvas(canvas, options = {}) {
       body: speedingByDay.map((d) => [d.day ?? '—', String(d.count ?? 0)]),
       margin: { left: margin, right: margin },
       theme: 'grid',
-      headStyles: { fillColor: [239, 68, 68], textColor: 255, fontStyle: 'bold' },
+      headStyles: { fillColor: [179, 25, 66], textColor: 255, fontStyle: 'bold' },
       styles: { fontSize: 9 },
       alternateRowStyles: { fillColor: [254, 242, 242] },
     });
@@ -202,7 +199,7 @@ export function generateReportPdfFromCanvas(canvas, options = {}) {
       body: freqByHour.slice(0, 24).map((d) => [d.label ?? '—', (d.value ?? 0).toLocaleString()]),
       margin: { left: margin, right: margin },
       theme: 'grid',
-      headStyles: { fillColor: [22, 163, 74], textColor: 255, fontStyle: 'bold' },
+      headStyles: { fillColor: [10, 49, 97], textColor: 255, fontStyle: 'bold' },
       styles: { fontSize: 9 },
       alternateRowStyles: { fillColor: [248, 250, 252] },
     });
